@@ -1,0 +1,7 @@
+jupyter==1.0.0
+pandas==1.5.3
+spacy==3.5.0
+torch==1.13.1
+torchvision==0.14.1
+torchaudio==0.13.1
+transformers==4.26.0
