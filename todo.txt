@@ -1,0 +1,4 @@
+auto_model.ipynb fix adamW inside Trainer
+data_processing fix .loc warning when viewing dfs
+generalize preprocess_data function in utils
+check if analyzing data without nlp model gives information about time series being relevant in price prediction
