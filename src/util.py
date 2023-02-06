@@ -1,7 +1,8 @@
 import csv
 import json
-from typing import Union, Dict
 import pickle
+from typing import Union, Dict
+
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
@@ -141,18 +142,28 @@ def foresee(model: Trainer,
     samples_to_predict = []
     placeholder_prices = []
 
-    # result of this loop are 2 lists:
+    # result of the loop below are 2 lists:
     # samples are in form for example: '10 days iphone 11' or just plain text
     # all placeholder_prices are equal to 0
 
-    for sample in text:
+    if type(text) == str:
         if days:
             for days_passed in range(*days):
-                samples_to_predict.append(str(days_passed) + ' days ' + sample)
+                samples_to_predict.append(str(days_passed) + ' days ' + text)
                 placeholder_prices.append(0)
         else:
-            samples_to_predict.append(sample)
+            samples_to_predict.append(text)
             placeholder_prices.append(0)
+
+    elif type(text) == list:
+        for sample in text:
+            if days:
+                for days_passed in range(*days):
+                    samples_to_predict.append(str(days_passed) + ' days ' + sample)
+                    placeholder_prices.append(0)
+            else:
+                samples_to_predict.append(sample)
+                placeholder_prices.append(0)
 
     tokens = tokenizer(samples_to_predict, truncation=True, padding=True, max_length=50)
     dataset = MakeTorchData(tokens, np.asarray(placeholder_prices).ravel())
@@ -188,6 +199,7 @@ def get_metrics_from_training(trainer_state_path: str,
 
     return metrics
 
+
 def load_trainer_for_prediction(model_path: str) -> Trainer:
     """
     Returns trainer ready for prediction
@@ -212,7 +224,6 @@ def load_trainer_for_prediction(model_path: str) -> Trainer:
         save_strategy="epoch",
     )
 
-    # Call the Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
