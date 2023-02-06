@@ -1,26 +1,29 @@
 import csv
+import json
 from typing import Union, Dict
-
+import pickle
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
-from transformers import AutoTokenizer, Trainer
+from transformers import AutoTokenizer, Trainer, TrainingArguments, AutoModelForSequenceClassification
 from transformers.trainer_utils import PredictionOutput
 
 from classes import MakeTorchData
 
 
-def create_standardized_data(feature_number: Union[None, int] = None) -> None:
+def create_standardized_data(path_to_file: str = '../data/recruitment_data.csv',
+                             feature_number: Union[None, int] = None) -> None:
     """
     This function goes through each line in the dataset via "next" generator and depending
     on the sample rewrites it, so the data is standardized (explained in detail in readme.md)
+    :param path_to_file: optional, specify path to csv file with data to standardize
     :param feature_number: optional, specifies number of columns, if the dataset does not contain header
     :return: None, writes file directly to .csv
     """
 
     rows = []
-    with open('../data/recruitment_data.csv', 'r', encoding='utf-8') as opened_file:
+    with open(path_to_file, 'r', encoding='utf-8') as opened_file:
         reader = csv.reader(opened_file)
         while True:
             try:
@@ -36,13 +39,13 @@ def create_standardized_data(feature_number: Union[None, int] = None) -> None:
     if not feature_number:
         feature_number = len(rows[0])  # number of features present in header of csv file
 
-    with open('../data/recruitment_data_modified_python.csv', 'w', encoding='utf-8') as writing_file:
+    with open(path_to_file[:-4] + 'standardized.csv', 'w', encoding='utf-8') as writing_file:
 
         for sample in rows:
             if len(sample) > feature_number:
                 try:
                     writing_file.write(sample + '\n')  # outlier samples (n_features > 13) caused problems
-                except TypeError:  # here, this solution works correctly
+                except TypeError:                      # here, this solution works correctly
                     writing_file.write(','.join(sample) + '\n')
             else:
                 writing_file.write(','.join(sample) + '\n')
@@ -68,9 +71,7 @@ def preprocess_data(data: pd.DataFrame,
     data_dropped_price_nans['Date'] = pd.to_datetime(data_dropped_price_nans['Added_at']).dt.date
 
     # clipping samples for our needs
-    data_reduced_dims = data_dropped_price_nans[data_dropped_price_nans.Condition == 'Używane']
-    data_reduced_dims = data_reduced_dims[data_reduced_dims.Type == 'Sprawny']
-    data_reduced_dims = data_reduced_dims[data_reduced_dims.Brand == 'iPhone']
+    data_reduced_dims = data_dropped_price_nans.query("Condition == 'Używane' & Type == 'Sprawny' & Brand == 'iPhone'")
 
     # dropping insignificant columns
     if columns_to_drop is None:
@@ -124,27 +125,34 @@ def compute_metrics(eval_pred: PredictionOutput) -> Dict:
 def foresee(model: Trainer,
             scaler: StandardScaler,
             tokenizer: AutoTokenizer,
-            text: str = 'iphone 11',
-            days: tuple = (1, 90)) -> np.ndarray:
+            text: Union[str, list] = 'iphone 11',
+            days: Union[tuple, None] = (1, 90)) -> np.ndarray:
     """
     This function returns 'Price' predictions of a given text in a time period
     :param model: Trainer object, trained on the dataset
     :param scaler: Scaler, fitted to the dataset, it's needed for inversion of data scaling
     :param tokenizer: Tokenizer object, used to tokenize the dataset in order to be predicted by model
-    :param text: Text to be processed; to the beginning of this string is added number of days specified in :param days
+    :param text: Text to be processed; if it's string number of days passed will be added from range in :param days,
+                 If it's list of strings samples will be unchanged
     :param days: Range of days (equal to number of samples in this prediction dataset) that will be added to the text
+                 If None, string of days passed will not be added to text
     :return: Numpy array with 'Price' predictions (rising number of days equals to time progression)
     """
     samples_to_predict = []
     placeholder_prices = []
 
     # result of this loop are 2 lists:
-    # samples are in form for example: '10 days iphone 11'
+    # samples are in form for example: '10 days iphone 11' or just plain text
     # all placeholder_prices are equal to 0
 
-    for days_passed in range(*days):
-        samples_to_predict.append(str(days_passed) + ' days ' + text)
-        placeholder_prices.append(0)
+    for sample in text:
+        if days:
+            for days_passed in range(*days):
+                samples_to_predict.append(str(days_passed) + ' days ' + sample)
+                placeholder_prices.append(0)
+        else:
+            samples_to_predict.append(sample)
+            placeholder_prices.append(0)
 
     tokens = tokenizer(samples_to_predict, truncation=True, padding=True, max_length=50)
     dataset = MakeTorchData(tokens, np.asarray(placeholder_prices).ravel())
@@ -152,3 +160,63 @@ def foresee(model: Trainer,
     prices = scaler.inverse_transform(np.asarray(predictions[0]).reshape(-1, 1))
 
     return prices
+
+
+def get_metrics_from_training(trainer_state_path: str,
+                              scaler_path: str) -> pd.DataFrame:
+    """
+    Extracts metric values for each training epoch in model
+    :param trainer_state_path: trainer state path contains metric values
+    :param scaler_path: scaler path, used for inverse scaling of the metrics
+    :return: DataFrame with metrics, ready to visualize
+    """
+    data = json.load(open(trainer_state_path))
+    scaler = pickle.load(open(scaler_path, 'rb'))
+
+    mse, mae, rmse, r2 = [], [], [], []
+
+    for epoch in range(len(data['log_history'])):
+        mse.append(scaler.inverse_transform(np.asarray(data['log_history'][epoch]['eval_mse']).reshape(-1, 1))[0, 0])
+        mae.append(scaler.inverse_transform(np.asarray(data['log_history'][epoch]['eval_mae']).reshape(-1, 1))[0, 0])
+        rmse.append(scaler.inverse_transform(np.asarray(data['log_history'][epoch]['eval_rmse']).reshape(-1, 1))[0, 0])
+        r2.append(data['log_history'][epoch]['eval_r2'])
+
+    metrics = pd.DataFrame(mse, columns=['MSE'])
+    metrics['MAE'] = mae
+    metrics['RMSE'] = rmse
+    metrics['R2'] = r2
+
+    return metrics
+
+def load_trainer_for_prediction(model_path: str) -> Trainer:
+    """
+    Returns trainer ready for prediction
+    :param model_path: Path to the folder, where the model resides (not the actual model itself!)
+    :return: trainer object ready for prediction
+    """
+
+    model = AutoModelForSequenceClassification.from_pretrained(model_path)
+
+    training_args = TrainingArguments(
+        output_dir=model_path,
+        num_train_epochs=5,
+        per_device_train_batch_size=64,
+        per_device_eval_batch_size=20,
+        weight_decay=0.01,
+        learning_rate=2e-5,
+        logging_dir='../logs',
+        save_total_limit=10,
+        load_best_model_at_end=True,
+        metric_for_best_model='rmse',
+        evaluation_strategy="epoch",
+        save_strategy="epoch",
+    )
+
+    # Call the Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        compute_metrics=compute_metrics,
+    )
+
+    return trainer

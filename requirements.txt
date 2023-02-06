@@ -11,3 +11,4 @@ plotly==5.13.0
 cufflinks==0.17.3
 dash==2.8.1
 statsmodels==0.13.5
+streamlit==1.17.0

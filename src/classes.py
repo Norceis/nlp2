@@ -3,7 +3,7 @@ import torch
 
 class MakeTorchData(torch.utils.data.Dataset):
     """
-    Entry data for transformers model needs to be an object of this class
+    Entry data for transformer model needs to be an object of this class
     """
 
     def __init__(self, encodings, labels):
