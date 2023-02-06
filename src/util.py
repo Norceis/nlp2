@@ -1,13 +1,16 @@
-import pandas as pd
-import numpy as np
 import csv
-import torch
 from typing import Union, Dict
-from transformers.trainer_utils import PredictionOutput
-from torch.utils.data import TensorDataset
-from sklearn.preprocessing import StandardScaler
+
+import numpy as np
+import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
+from sklearn.preprocessing import StandardScaler
+from transformers import AutoTokenizer, Trainer
+from transformers.trainer_utils import PredictionOutput
+
+from classes import MakeTorchData
+
+
 def create_standardized_data(feature_number: Union[None, int] = None) -> None:
     """
     This function goes through each line in the dataset via "next" generator and depending
@@ -23,27 +26,26 @@ def create_standardized_data(feature_number: Union[None, int] = None) -> None:
             try:
                 line = next(reader)
                 if len(line) == 1:
-                    line = line[0]          # because some of the samples were enclosed in additional quote we need to
-                    rows.append(line)       # get it out of the one-element list it was put into by csv module
+                    line = line[0]     # because some samples were enclosed in additional quote we need to
+                    rows.append(line)  # get it out of the one-element list it was put into by csv module
                 else:
-                    rows.append(line)       # rest of the samples were not modified
+                    rows.append(line)  # rest of the samples were not modified
             except StopIteration:
                 break
 
     if not feature_number:
-        feature_number = len(rows[0]) # number of features present in header of csv file
+        feature_number = len(rows[0])  # number of features present in header of csv file
 
     with open('../data/recruitment_data_modified_python.csv', 'w', encoding='utf-8') as writing_file:
 
         for sample in rows:
             if len(sample) > feature_number:
                 try:
-                    writing_file.write(sample + '\n')              # outlier samples (n_features > 13) caused problems
-                except TypeError:                                  # here, this solution works correctly
+                    writing_file.write(sample + '\n')  # outlier samples (n_features > 13) caused problems
+                except TypeError:  # here, this solution works correctly
                     writing_file.write(','.join(sample) + '\n')
             else:
                 writing_file.write(','.join(sample) + '\n')
-
 
 
 def preprocess_data(data: pd.DataFrame,
@@ -52,19 +54,17 @@ def preprocess_data(data: pd.DataFrame,
     """
     This function summarizes the exploratory work done in data_preprocessing.ipynb.
     Due to the nature of the problem posed in this project it was suited for this particular
-    dataset, but it can be improved in more general form (TODO)
+    dataset, but it can be improved in more general form.
     :param data: DataFrame with the raw data
     :param columns_to_drop: optional, which columns to drop in order to have more compact DataFrame
     :param price_clip: optional, used to cut off samples under this treshold in 'Price'
-    :return: processed DataFrame
+    :return: processed DataFrame with 'Price', concatenated 'Days_passed', 'Name', 'Description' columns
     """
-
 
     # dropping nans in price
     data_dropped_price_nans = data.dropna(subset=['Price']).reset_index(drop=True)
 
-    # adding important data type and column with date only
-    # data_dropped_price_nans['Added_at'] = pd.to_datetime(data_dropped_price_nans['Added_at'])
+    # adding column with date only
     data_dropped_price_nans['Date'] = pd.to_datetime(data_dropped_price_nans['Added_at']).dt.date
 
     # clipping samples for our needs
@@ -72,6 +72,7 @@ def preprocess_data(data: pd.DataFrame,
     data_reduced_dims = data_reduced_dims[data_reduced_dims.Type == 'Sprawny']
     data_reduced_dims = data_reduced_dims[data_reduced_dims.Brand == 'iPhone']
 
+    # dropping insignificant columns
     if columns_to_drop is None:
         columns_to_drop = ['Voivodeship', 'Scrap_time', 'Views',
                            'User_since', 'Added_at', 'URL', 'Brand', 'Condition',
@@ -95,13 +96,20 @@ def preprocess_data(data: pd.DataFrame,
     data_filtered['Days_passed_name_desc'] = data_filtered['Days_passed'].astype(str) + ' ' + \
                                              data_filtered['Name'] + ' ' + data_filtered['Description']
 
-    # removing insignificant columns
+    # dropping insignificant columns
     data_concatenated = data_filtered.drop(columns=['Name', 'Description',
                                                     'First_date', 'Date', 'Days_passed']).reset_index(drop=True)
 
     return data_concatenated
 
+
 def compute_metrics(eval_pred: PredictionOutput) -> Dict:
+    """
+    This functions returns a dictionary of metrics, that is used in torch models for checkpoints, but also can be used
+    manually to test data predicted by the model.
+    :param eval_pred: Data prediction outputted by torch model
+    :return: Dictionary of metrics
+    """
     logits, labels = eval_pred
     labels = labels.reshape(-1, 1)
 
@@ -112,34 +120,35 @@ def compute_metrics(eval_pred: PredictionOutput) -> Dict:
 
     return {"mse": mse, "rmse": rmse, "mae": mae, "r2": r2}
 
-class MakeTorchData(torch.utils.data.Dataset):
-    def __init__(self, encodings, labels):
-        self.encodings = encodings
-        self.labels = labels
 
-    def __getitem__(self, idx):
-        item = {k: torch.tensor(v[idx]) for k, v in self.encodings.items()}
-        item["labels"] = torch.tensor([self.labels[idx]])
-        item["labels"] = float(item["labels"])
-        return item
-
-    def __len__(self):
-        return len(self.labels)
 def foresee(model: Trainer,
             scaler: StandardScaler,
             tokenizer: AutoTokenizer,
             text: str = 'iphone 11',
             days: tuple = (1, 90)) -> np.ndarray:
+    """
+    This function returns 'Price' predictions of a given text in a time period
+    :param model: Trainer object, trained on the dataset
+    :param scaler: Scaler, fitted to the dataset, it's needed for inversion of data scaling
+    :param tokenizer: Tokenizer object, used to tokenize the dataset in order to be predicted by model
+    :param text: Text to be processed; to the beginning of this string is added number of days specified in :param days
+    :param days: Range of days (equal to number of samples in this prediction dataset) that will be added to the text
+    :return: Numpy array with 'Price' predictions (rising number of days equals to time progression)
+    """
+    samples_to_predict = []
+    placeholder_prices = []
 
-    extrapolated_x = []
-    extrapolated_y = []
-    for i in range(*days):
-        extrapolated_x.append(str(i) + ' days ' + text)
-        extrapolated_y.append(0)
+    # result of this loop are 2 lists:
+    # samples are in form for example: '10 days iphone 11'
+    # all placeholder_prices are equal to 0
 
-    extrapolated_tokens = tokenizer(extrapolated_x, truncation=True, padding=True, max_length=50)
-    extrapolated_dataset = MakeTorchData(extrapolated_tokens, np.asarray(extrapolated_y).ravel())
-    extrapolated_predictions = model.predict(extrapolated_dataset)
-    inversed_extrapolated = scaler.inverse_transform(np.asarray(extrapolated_predictions[0]).reshape(-1, 1))
+    for days_passed in range(*days):
+        samples_to_predict.append(str(days_passed) + ' days ' + text)
+        placeholder_prices.append(0)
 
-    return inversed_extrapolated
+    tokens = tokenizer(samples_to_predict, truncation=True, padding=True, max_length=50)
+    dataset = MakeTorchData(tokens, np.asarray(placeholder_prices).ravel())
+    predictions = model.predict(dataset)
+    prices = scaler.inverse_transform(np.asarray(predictions[0]).reshape(-1, 1))
+
+    return prices
