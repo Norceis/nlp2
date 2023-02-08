@@ -8,3 +8,5 @@ try to build better time series model
 
 change data loading to include headers instead of predefined input in preprocess_data in util.py
 
+"gb" in prompt matters (changes std of the model) - to results
+

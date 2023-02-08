@@ -1,7 +1,7 @@
 import csv
 import json
 import pickle
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -13,14 +13,13 @@ from transformers.trainer_utils import PredictionOutput
 from classes import MakeTorchData
 
 
-def create_standardized_data(path_to_file: str = '../data/recruitment_data.csv',
-                             feature_number: Union[None, int] = None) -> None:
+def create_standardized_data(path_to_file: Optional[str] = '../data/recruitment_data.csv',
+                             column_number: Optional[int] = None) -> None:
     """
     This function goes through each line in the dataset via "next" generator and depending
-    on the sample rewrites it, so the data is standardized (explained in detail in readme.md)
-    :param path_to_file: optional, specify path to csv file with data to standardize
-    :param feature_number: optional, specifies number of columns, if the dataset does not contain header
-    :return: None, writes file directly to .csv
+    on the sample rewrites it, so the data is standardized (explained in detail in readme.md - part 1)
+    :param path_to_file: specify path to csv file with data to standardize
+    :param column_number: if this is not specified the function will get this automatically from header
     """
 
     rows = []
@@ -30,24 +29,24 @@ def create_standardized_data(path_to_file: str = '../data/recruitment_data.csv',
             try:
                 line = next(reader)
                 if len(line) == 1:
-                    line = line[0]     # because some samples were enclosed in additional quote we need to
+                    line = line[0]  # because some samples were enclosed in additional quote we need to
                     rows.append(line)  # get it out of the one-element list it was put into by csv module
                 else:
-                    rows.append(line)  # rest of the samples were not modified
+                    rows.append(line)  # rest of the samples were not modified by csv
             except StopIteration:
                 break
 
-    if not feature_number:
-        feature_number = len(rows[0])  # number of features present in header of csv file
+    if not column_number:
+        column_number = len(rows[0])  # number of features present in header of csv file
 
     with open(path_to_file[:-4] + 'standardized.csv', 'w', encoding='utf-8') as writing_file:
 
         for sample in rows:
-            if len(sample) > feature_number:
+            if len(sample) > column_number:
                 try:
                     writing_file.write(sample + '\n')  # outlier samples (n_features > 13) caused problems
-                except TypeError:                      # here, this solution works correctly
-                    writing_file.write(','.join(sample) + '\n')
+                except TypeError:
+                    writing_file.write(','.join(sample) + '\n')  # here, this solution works correctly
             else:
                 writing_file.write(','.join(sample) + '\n')
 
@@ -56,9 +55,9 @@ def preprocess_data(data: pd.DataFrame,
                     columns_to_drop: Union[None, list] = None,
                     price_clip: int = 1000) -> pd.DataFrame:
     """
-    This function summarizes the exploratory work done in data_preprocessing.ipynb.
-    Due to the nature of the problem posed in this project it was suited for this particular
-    dataset, but it can be improved in more general form.
+    This function summarizes the exploration and preprocessing work done in 03_data_preprocessing.ipynb.
+    Due to the nature of the problem in this project it was suited for this particular dataset, but it could be
+    improved in more general form.
     :param data: DataFrame with the raw data
     :param columns_to_drop: optional, which columns to drop in order to have more compact DataFrame
     :param price_clip: optional, used to cut off samples under this treshold in 'Price'
@@ -123,11 +122,11 @@ def compute_metrics(eval_pred: PredictionOutput) -> Dict:
     return {"mse": mse, "rmse": rmse, "mae": mae, "r2": r2}
 
 
-def foresee(model: Trainer,
-            scaler: StandardScaler,
-            tokenizer: AutoTokenizer,
-            text: Union[str, list] = 'iphone 11',
-            days: Union[tuple, None] = (1, 90)) -> np.ndarray:
+def predict_text(model: Trainer,
+                 scaler: StandardScaler,
+                 tokenizer: AutoTokenizer,
+                 text: Union[str, list] = 'iphone 11',
+                 days: Union[tuple, None] = (1, 90)) -> np.ndarray:
     """
     This function returns 'Price' predictions of a given text in a time period
     :param model: Trainer object, trained on the dataset
@@ -146,24 +145,40 @@ def foresee(model: Trainer,
     # samples are in form for example: '10 days iphone 11' or just plain text
     # all placeholder_prices are equal to 0
 
-    if type(text) == str:
-        if days:
-            for days_passed in range(*days):
-                samples_to_predict.append(str(days_passed) + ' days ' + text)
-                placeholder_prices.append(0)
-        else:
-            samples_to_predict.append(text)
-            placeholder_prices.append(0)
+    # if isinstance(text, str):
+    #     if days:
+    #         for days_passed in range(*days):
+    #             samples_to_predict.append(str(days_passed) + ' days ' + text)
+    #             placeholder_prices.append(0)
+    #     else:
+    #         samples_to_predict.append(text)
+    #         placeholder_prices.append(0)
+    #
+    # elif isinstance(text, list):
+    #     for sample in text:
+    #         if days:
+    #             for days_passed in range(*days):
+    #                 samples_to_predict.append(str(days_passed) + ' days ' + sample)
+    #                 placeholder_prices.append(0)
+    #         else:
+    #             samples_to_predict.append(sample)
+    #             placeholder_prices.append(0)
 
-    elif type(text) == list:
-        for sample in text:
-            if days:
-                for days_passed in range(*days):
-                    samples_to_predict.append(str(days_passed) + ' days ' + sample)
-                    placeholder_prices.append(0)
-            else:
-                samples_to_predict.append(sample)
-                placeholder_prices.append(0)
+    samples_to_predict = []
+
+    if isinstance(text, str):
+        text = [text]
+
+    if not days:
+        samples_to_predict += [i for i in text]
+    else:
+        samples_to_predict += [
+            f'{days_passed} days {sample}'
+            for days_passed in range(*days)
+            for sample in text
+        ]
+
+    placeholder_prices = [0 for _ in range(len(samples_to_predict))]
 
     tokens = tokenizer(samples_to_predict, truncation=True, padding=True, max_length=50)
     dataset = MakeTorchData(tokens, np.asarray(placeholder_prices).ravel())
@@ -185,7 +200,6 @@ def get_metrics_from_training(trainer_state_path: str,
     scaler = pickle.load(open(scaler_path, 'rb'))
 
     mse, mae, rmse, r2 = [], [], [], []
-
     for epoch in range(len(data['log_history'])):
         mse.append(scaler.inverse_transform(np.asarray(data['log_history'][epoch]['eval_mse']).reshape(-1, 1))[0, 0])
         mae.append(scaler.inverse_transform(np.asarray(data['log_history'][epoch]['eval_mae']).reshape(-1, 1))[0, 0])
