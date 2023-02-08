@@ -138,31 +138,6 @@ def predict_text(model: Trainer,
                  If None, string of days passed will not be added to text
     :return: Numpy array with 'Price' predictions (rising number of days equals to time progression)
     """
-    samples_to_predict = []
-    placeholder_prices = []
-
-    # result of the loop below are 2 lists:
-    # samples are in form for example: '10 days iphone 11' or just plain text
-    # all placeholder_prices are equal to 0
-
-    # if isinstance(text, str):
-    #     if days:
-    #         for days_passed in range(*days):
-    #             samples_to_predict.append(str(days_passed) + ' days ' + text)
-    #             placeholder_prices.append(0)
-    #     else:
-    #         samples_to_predict.append(text)
-    #         placeholder_prices.append(0)
-    #
-    # elif isinstance(text, list):
-    #     for sample in text:
-    #         if days:
-    #             for days_passed in range(*days):
-    #                 samples_to_predict.append(str(days_passed) + ' days ' + sample)
-    #                 placeholder_prices.append(0)
-    #         else:
-    #             samples_to_predict.append(sample)
-    #             placeholder_prices.append(0)
 
     samples_to_predict = []
 

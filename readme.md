@@ -4,12 +4,14 @@
 1. src - working files (jupyter notebooks and .py function files)
 2. data - csv files with scrapped and processed data
 3. models - machine learning models files
+4. streamlit - API for user interface with presented data
 
 ## <center> Chronological order of working files in src
 1. data_standardization.ipynb
 2. data_preprocessing.ipynb
 3. auto_model.ipynb
 4. data_visualization.ipynb
+5. data_exploration.ipynb
 
 Code from those notebooks is distilled into functions in **util.py** and **classes.py**
 
@@ -24,8 +26,15 @@ Data supplied along the task (**recruitment_task.csv**) had samples mostly in 2 
 Having those 2 differently formatted sample groups I needed to standardize them into one format - which is the first one.
 is done in **data_standardization.ipynb**, also moving the finished function to **util.py**.
 
-## <center> Part 2 - data analysis and preprocessing
-After tackling the problem of standardizing data I have started to explore and transform the data according to the 
+## <center> Part 2 - data exploration and analysis 
+During this step I toyed with plotly possibilites and managed to group data into different iPhone 11 models in order to check
+if progressing time series affects the prices. The results of this step are summarized in **02_data_exploration.ipynb** 
+and also are available in Streamlit interface for preview. This step uses code that I came up with in the next part - 
+my reasoning is detailed there more thoroughly. 
+
+
+## <center> Part 3 - data preprocessing
+After tackling the problem of standardizing and exploration of data I have started to transform the data according to the 
 problem specification **data_preprocessing.ipynb**:
 1. At first I check visually if the structure of the data is correct after standardization
 2. I study how many empty fields are in the data and also I look at different values and their
@@ -71,7 +80,12 @@ before on the dataset. Metrics used to measure performance of the model are (com
 
 This part also contains my observations and thoughts about the model and results in the form of markdown comments.
 
-## <center> Part 5 - Interface with results WIP
+## <center> Part 5 - Interface with results 
+Data acquired during work on the project is presented in Streamlit interface. To launch it run:
+
+```python -m streamlit run .streamlit/streamlit_interface.py```
+
+In order to be able to interact with the model itself in Streamlit, you need to generate model files first (run 04_auto_model.ipynb)
 
 
 
