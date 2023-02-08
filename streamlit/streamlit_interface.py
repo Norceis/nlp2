@@ -258,8 +258,8 @@ if selection == 'Data exploration':
 
     st.plotly_chart(fig)
     st.markdown('''<div style="text-align: justify;">  The disproportion in price for different iPhone 11 models 
-    is clear from the distplot. Further dividing the dataset into different memory variant of the models would also 
-    yield good, dividing results (as it did for the NLP model later on).</div>''', unsafe_allow_html=True)
+    is clear from the distplot. Further dividing the dataset into different memory variant of the models is possible.
+    </div>''', unsafe_allow_html=True)
 
 
 elif selection == 'Data analysis from local model':

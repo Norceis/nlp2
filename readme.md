@@ -1,5 +1,26 @@
 # <center> Predicting phone price based on processing text from trade offers
 
+## <center>Project summary
+<justify>The goal of the project was to extrapolate the price of iPhone prices into the future from data, scrapped from OLX of 
+time period spanning almost 2 months. The project was divided into parts: data standardization, data exploration, 
+data preprocessing, NLP model, data visualization and user interface with visualized data. These parts are described in 
+detail below. All of the notebooks in src dir contain detailed comments about the purpose of the code. Some parts of 
+the code were functionalized and moved to **util.py**.
+
+To summarize the results - early exploration od the data has shown that price-time correlation may not be 
+present in the data, which is also denoted by the NLP model used in this project. Price-time predictions 
+of the model do not seem to correlate strongly with each other. Reasonably I see two potential causes:
+
+1. Model does not work correctly (better model needed)
+2. The data does not contain any price-time correlation (bigger dataset needed)
+
+I think both reasons are valid. Exploring another architecture of the model, possibly better suited
+for time series prediction, would be a good direction to explore in the future.
+
+What is interesting though, the model had no issue with detecting price differences in various iPhone 11 variants 
+(different memory storage, premium models), which emerged from the predictions in a clear-cut way, even with so few 
+epochs and very few premium model samples to train on.  
+</justify>
 ## <center> Project structure
 1. src - working files (jupyter notebooks and .py function files)
 2. data - csv files with scrapped and processed data
@@ -15,7 +36,7 @@
 
 Code from those notebooks is distilled into functions in **util.py** and **classes.py**
 
-## <center> Part 1 - data standardization
+## <center> Part 1 - Data standardization
 
 Data supplied along the task (**recruitment_task.csv**) had samples mostly in 2 general forms:
 1. Samples with features separated by a comma with large text features such as "Name" and "Description" having quotes inside of them 
@@ -26,14 +47,14 @@ Data supplied along the task (**recruitment_task.csv**) had samples mostly in 2 
 Having those 2 differently formatted sample groups I needed to standardize them into one format - which is the first one.
 is done in **data_standardization.ipynb**, also moving the finished function to **util.py**.
 
-## <center> Part 2 - data exploration and analysis 
+## <center> Part 2 - Data exploration and analysis 
 During this step I toyed with plotly possibilites and managed to group data into different iPhone 11 models in order to check
 if progressing time series affects the prices. The results of this step are summarized in **02_data_exploration.ipynb** 
 and also are available in Streamlit interface for preview. This step uses code that I came up with in the next part - 
 my reasoning is detailed there more thoroughly. 
 
 
-## <center> Part 3 - data preprocessing
+## <center> Part 3 - Data preprocessing
 After tackling the problem of standardizing and exploration of data I have started to transform the data according to the 
 problem specification **data_preprocessing.ipynb**:
 1. At first I check visually if the structure of the data is correct after standardization
@@ -56,7 +77,7 @@ problem specification **data_preprocessing.ipynb**:
 Both notebooks resulted in two functions (described in detail in **util.py**) used in latter notebooks. 
 Data preprocessing could be more generalized and parametrized.
 
-## <center> Part 3 - NLP model
+## <center> Part 4 - NLP model
 Having processed data in form of concatenated text used to feed the model in one column and target price in the other
 I proceed to build a basic model with pretrained polish language model _'dkleczek/bert-base-polish-uncased-v1'_ 
 from Hugging Face transformers library, which is based on BERT model from Google. 
@@ -70,7 +91,7 @@ Preparation of the data for the model consists of several parts:
 Torch-type dataset is the entry to training and validation phase of the process. During training (and at the end of it) at every epoch model metrics and parameters are saved.
 This allows us to later load the model and performs predictions with it.
 
-## <center> Part 4 - Data visualisation 
+## <center> Part 5 - Data visualisation 
 **data_visualization.ipynb** contains both changes in metric values and possible predictions for any model trained
 before on the dataset. Metrics used to measure performance of the model are (compute_metrics in **util.py**): 
 1. mean square error
@@ -80,7 +101,7 @@ before on the dataset. Metrics used to measure performance of the model are (com
 
 This part also contains my observations and thoughts about the model and results in the form of markdown comments.
 
-## <center> Part 5 - Interface with results 
+## <center> Part 6 - Interface with results 
 Data acquired during work on the project is presented in Streamlit interface. To launch it run:
 
 ```python -m streamlit run .streamlit/streamlit_interface.py```
