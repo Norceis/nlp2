@@ -1,8 +1,8 @@
 # <center> Predicting phone price based on processing text from trade offers
 
 ## <center>Project summary
-<justify>The goal of the project was to extrapolate the price of iPhone prices into the future from data, scrapped from OLX of 
-time period spanning almost 2 months. The project was divided into parts: data standardization, data exploration, 
+<justify>The goal of the project was to extrapolate the price of iPhones into the future from data scrapped from OLX of 
+time period spanning almost 2 months. The project was divided into six parts: data standardization, data exploration, 
 data preprocessing, NLP model, data visualization and user interface with visualized data. These parts are described in 
 detail below. All of the notebooks in src dir contain detailed comments about the purpose of the code. Some parts of 
 the code were functionalized and moved to **util.py**.
@@ -11,11 +11,11 @@ To summarize the results - early exploration od the data has shown that price-ti
 present in the data, which is also denoted by the NLP model used in this project. Price-time predictions 
 of the model do not seem to correlate strongly with each other. Reasonably I see two potential causes:
 
-1. Model does not work correctly (better model needed)
-2. The data does not contain any price-time correlation (bigger dataset needed)
+1. Model does not work correctly (need better model)
+2. The data does not contain any price-time correlation (need bigger dataset)
 
 I think both reasons are valid. Exploring another architecture of the model, possibly better suited
-for time series prediction, would be a good direction to explore in the future.
+for time series prediction, would be a good direction for the future.
 
 What is interesting though, the model had no issue with detecting price differences in various iPhone 11 variants 
 (different memory storage, premium models), which emerged from the predictions in a clear-cut way, even with so few 
