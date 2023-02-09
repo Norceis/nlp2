@@ -102,9 +102,9 @@ before on the dataset. Metrics used to measure performance of the model are (com
 This part also contains my observations and thoughts about the model and results in the form of markdown comments.
 
 ## <center> Part 6 - Interface with results 
-Data acquired during work on the project is presented in Streamlit interface. To launch it run:
+Data acquired during work on the project is presented in Streamlit interface. To launch it click here or run it in terminal (make sure you are in root dir):
 
-```python -m streamlit run .streamlit/streamlit_interface.py```
+```python -m streamlit run streamlit/streamlit_interface.py```
 
 In order to be able to interact with the model itself in Streamlit, you need to generate model files first (run 04_auto_model.ipynb)
 

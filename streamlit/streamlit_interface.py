@@ -166,7 +166,7 @@ with st.sidebar:
 if selection == 'Data exploration':
     st.markdown('''<font size="16"><div style="text-align: center;">Results of data exploration</div></font>''',
                 unsafe_allow_html=True)
-    data = pd.read_csv('../data/recruitment_data_standardized.csv',
+    data = pd.read_csv('data/recruitment_data_standardized.csv',
                        encoding='utf-8',
                        sep=',',
                        on_bad_lines='skip',
@@ -263,7 +263,7 @@ if selection == 'Data exploration':
 
 
 elif selection == 'Data analysis from local model':
-    if os.path.isfile('../models/auto_model/test_model/pytorch_model.bin'):
+    if os.path.isfile('models/auto_model/test_model/pytorch_model.bin'):
         wanna_predict = st.radio('Do you want to perform your own prediction?', ['Yes', 'No'])
         if wanna_predict == 'Yes':
             text_to_predict = st.text_input('Please input text for which the price will be predicted for', 'iPhone 11')
@@ -277,7 +277,7 @@ elif selection == 'Data analysis from local model':
         wanna_metrics = st.radio('Do you want to plot metrics of your own model?', ['Yes', 'No'])
 
         col1_1, _, col2_1, _, col3_1 = st.columns(5)
-        PATH_FOR_MODEL = '../models/auto_model/test_model'
+        PATH_FOR_MODEL = 'models/auto_model/test_model'
         if col2_1.button('Engage'):
             if wanna_metrics == 'Yes':
                 metric_predictions = get_metrics_from_training(
@@ -347,11 +347,11 @@ elif selection == 'Analysis of pre-generated data':
     col1_1, col2_1, col3_1 = st.columns(3)
     if col2_1.button('Engage visualizations'):
         with st.spinner('Loading data in progress'):
-            days_name_5_metrics = pd.read_csv('metrics/days_name_5_metrics.csv', index_col=0)
-            days_name_20_metrics = pd.read_csv('metrics/days_name_20_metrics.csv', index_col=0)
-            days_name_desc_5_ml100_metrics = pd.read_csv('metrics/days_name_desc_5_ml100_metrics.csv', index_col=0)
-            days_name_desc_20_ml100_metrics = pd.read_csv('metrics/days_name_desc_20_ml100_metrics.csv', index_col=0)
-            predictions = pd.read_csv('predictions/days_name_5_predictions.csv', index_col=0)
+            days_name_5_metrics = pd.read_csv('streamlit/metrics/days_name_5_metrics.csv', index_col=0)
+            days_name_20_metrics = pd.read_csv('streamlit/metrics/days_name_20_metrics.csv', index_col=0)
+            days_name_desc_5_ml100_metrics = pd.read_csv('streamlit/metrics/days_name_desc_5_ml100_metrics.csv', index_col=0)
+            days_name_desc_20_ml100_metrics = pd.read_csv('streamlit/metrics/days_name_desc_20_ml100_metrics.csv', index_col=0)
+            predictions = pd.read_csv('streamlit/predictions/days_name_5_predictions.csv', index_col=0)
             time.sleep(1)
         st.success('Loading data done!')
 
